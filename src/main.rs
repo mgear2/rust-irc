@@ -5,7 +5,7 @@
 
 use std::process::exit;
 
-///! A simple IRC client written in Rust. 
+///! A simple IRC client written in Rust.
 
 /// Report proper usage and exit.
 fn usage() -> ! {
@@ -13,9 +13,7 @@ fn usage() -> ! {
     exit(1);
 }
 
-///```
-///assert_eq!(Some("test"), Some("test"))
-///```
+/// Send a message
 fn send(msg: String) {
     println!("Sent: {}", msg);
 }
@@ -43,8 +41,7 @@ fn main() {
                 if msg == "exit" {
                     println!("exiting...");
                     break;
-                }
-                else {
+                } else {
                     send(msg);
                 }
             }
@@ -54,11 +51,9 @@ fn main() {
 }
 
 mod tests {
-    //use super::*;
-    
     // extremely important test
     #[test]
     fn extra_testy_test() {
-        assert_eq!((2+2), 4)
+        assert_eq!((2 + 2), 4)
     }
 }
