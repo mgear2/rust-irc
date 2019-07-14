@@ -1,5 +1,5 @@
 # rust-irc
-Copyright (c) 2019 Matthew geary
+Copyright (c) 2019 Matthew Geary
 
 A simple IRC (Internet Relay Chat) Client written in Rust. 
 For connecting to freenode and possibly other irc networks. 
