@@ -5,3 +5,4 @@ authors = ["Matthew Geary <mgear2@pdx.edu>"]
 edition = "2018"
 
 [dependencies]
+encoding = "0.2.33"
