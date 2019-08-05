@@ -17,7 +17,9 @@ fn usage() -> ! {
 }
 
 fn connect(nick: String) -> std::io::Result<TcpStream> {
+    // https://doc.rust-lang.org/std/net/struct.TcpStream.html
     let stream = TcpStream::connect("irc.freenode.org:6667")?;
+    //stream.set_nonblocking(true).expect("set_nonblocking call failed");
 
     // https://github.com/hoodie/concatenation_benchmarks-rs
     let nick_string = format!("{}\r\n", &nick);
@@ -42,22 +44,8 @@ fn send_cmd(mut stream: &TcpStream, cmd: &str, msg: String) -> Result<usize, std
     stream.write(cmd.as_bytes())
 }
 
-fn _receive() {}
-
-fn _print_response() {}
-
-/// Do the computation.
-fn main() -> std::io::Result<()> {
-    // Process the arguments.
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() != 3 {
-        usage();
-    }
-    let nick = args[1].clone();
-    let _channel = &args[2];
-    let mut stream = connect(nick).unwrap();
-
-    for _ in 0..76 {
+fn receive(mut stream: &TcpStream) -> std::io::Result<()> {
+    for i in 0..66 {
         let mut buffer = Vec::new();
         let mut temp = [1];
         for _ in 0..512 {
@@ -69,8 +57,23 @@ fn main() -> std::io::Result<()> {
             }
         }
         let res_string = str::from_utf8(&buffer[..]).unwrap();
-        println!("{}", res_string);
+        println!("{}: {}", i, res_string);
     }
+    Ok(())
+}
+
+/// Do the computation.
+fn main() -> std::io::Result<()> {
+    // Process the arguments.
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() != 3 {
+        usage();
+    }
+    let nick = args[1].clone();
+    let _channel = &args[2];
+    let stream = connect(nick).unwrap();
+
+    let _ = receive(&stream);
 
     // Read the input.
     use std::io;
