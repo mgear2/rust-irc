@@ -18,9 +18,10 @@ fn usage() -> ! {
     exit(1);
 }
 
-fn connect(nick: String) -> std::io::Result<TcpStream> {
+fn connect(nick: String) -> (std::io::Result<TcpStream>, std::io::Result<TcpStream>) {
     // https://doc.rust-lang.org/std/net/struct.TcpStream.html
-    let stream = TcpStream::connect("irc.freenode.org:6667")?;
+    let recv_stream = TcpStream::connect("irc.freenode.org:6667").unwrap();
+    let send_stream = TcpStream::connect("irc.freenode.org:6667").unwrap();
     //stream.set_nonblocking(true).expect("set_nonblocking call failed");
 
     // https://tools.ietf.org/html/rfc1459#section-4.1.1
@@ -28,10 +29,10 @@ fn connect(nick: String) -> std::io::Result<TcpStream> {
     let nick_string = format!("{}\r\n", &nick);
     let user_string = format!("{} * * {}\n\r", &nick, &nick);
 
-    let _ = send_cmd(&stream, "USER", user_string);
-    let _ = send_cmd(&stream, "NICK", nick_string);
+    let _ = send_cmd(&recv_stream, "USER", user_string);
+    let _ = send_cmd(&recv_stream, "NICK", nick_string);
 
-    Ok(stream)
+    (Ok(recv_stream), Ok(send_stream))
 }
 
 fn _send_msg(mut stream: &TcpStream, msg: String) -> Result<usize, std::io::Error> {
@@ -75,11 +76,13 @@ fn main() -> std::io::Result<()> {
     }
     let nick = args[1].clone();
     let _channel = &args[2];
-    let stream = connect(nick).unwrap();
-    
+    let streams = connect(nick);
+    let recv_stream = streams.0.unwrap();
+    let send_stream = streams.1.unwrap();
+
     // https://doc.rust-lang.org/nightly/std/thread/
     thread::spawn( move || {
-        let _ = receive(&stream);
+        let _ = receive(&recv_stream);
     });
 
     // Read the input.
@@ -89,7 +92,8 @@ fn main() -> std::io::Result<()> {
         match io::stdin().read_line(&mut msg) {
             Ok(_) => {
                 msg = msg.trim().to_string();
-                if msg == "exit" {
+                if msg == "exit" || msg == "quit" {
+                    let _ = send_cmd(&send_stream, "QUIT", "\r\n".to_string());
                     println!("exiting...");
                     return Ok(());
                 } else {
