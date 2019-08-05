@@ -62,13 +62,14 @@ fn main() -> std::io::Result<()> {
         let mut temp = [1];
         for _ in 0..512 {
             stream.read_exact(&mut temp)?;
-            if temp[0] == 13 {
-                break;
+            match temp[0] {
+                0xD => continue, // carriage return
+                0xA => break,    // line feed
+                _ => buffer.push(temp[0]),
             }
-            buffer.push(temp[0]);
         }
         let res_string = str::from_utf8(&buffer[..]).unwrap();
-        println!("res_string: {}", res_string);
+        println!("{}", res_string);
     }
 
     // Read the input.
