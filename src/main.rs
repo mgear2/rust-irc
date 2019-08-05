@@ -91,13 +91,17 @@ fn main() -> std::io::Result<()> {
         let mut msg = String::new();
         match io::stdin().read_line(&mut msg) {
             Ok(_) => {
-                msg = msg.trim().to_string();
-                if msg == "exit" || msg == "quit" {
-                    let _ = send_cmd(&send_stream, "QUIT", "\r\n".to_string());
-                    println!("exiting...");
-                    return Ok(());
-                } else {
-                    println!("You said: {}", msg);
+                let msg: Vec<&str> = msg.trim().split(" ").collect();
+                let cmd: &str = msg[0];
+                match cmd {
+                    "/quit" => {
+                        let _ = send_cmd(&send_stream, "QUIT", "\r\n".to_string());
+                        println!("Quitting...");
+                        return Ok(());
+                    },
+                    _ => {
+                        println!("Unrecognized command: {}", msg[0]);
+                    }
                 }
             }
             Err(error) => eprintln!("error: {}", error),
