@@ -16,9 +16,31 @@ fn usage() -> ! {
     exit(1);
 }
 
-fn _send_msg() {}
+fn connect(nick: String) -> std::io::Result<TcpStream> {
+    let stream = TcpStream::connect("irc.freenode.org:6667")?;
 
-fn _send_cmd() {}
+    // https://github.com/hoodie/concatenation_benchmarks-rs
+    let nick_string = format!("{}\r\n", &nick);
+    let user_string = format!("{} * * {}\n\r", &nick, &nick);
+
+    let _ = send_cmd(&stream, "USER", user_string);
+    let _ = send_cmd(&stream, "NICK", nick_string);
+
+    Ok(stream)
+}
+
+fn _send_msg(mut stream: &TcpStream, msg: String) -> Result<usize, std::io::Error> {
+    let mut priv_msg = "PRIVMSG ".to_string();
+    priv_msg.push_str(&msg);
+    stream.write(msg.as_bytes())
+}
+
+fn send_cmd(mut stream: &TcpStream, cmd: &str, msg: String) -> Result<usize, std::io::Error> {
+    let mut cmd = cmd.to_string();
+    cmd.push_str(" ");
+    cmd.push_str(&msg);
+    stream.write(cmd.as_bytes())
+}
 
 fn _receive() {}
 
@@ -31,17 +53,11 @@ fn main() -> std::io::Result<()> {
     if args.len() != 3 {
         usage();
     }
-    let mut username = args[1].clone();
-    let channel = &args[2];
-    println!("username: {:?}, channel: {}", username, channel);
-    username.push_str(&"\r\n".to_string());
-    println!("username: {:?}, channel: {}", username, channel);
-    let mut stream = TcpStream::connect("irc.freenode.org:6667")?;
-    let _ = stream.write(username.as_bytes())?;
-    //let _ = stream.write(b"USER MATT5\r\n");
-    //let _ = stream.write(b"JOIN #tutbot-testing\r\n");
+    let nick = args[1].clone();
+    let _channel = &args[2];
+    let mut stream = connect(nick).unwrap();
 
-    for _ in 0..10 {
+    for _ in 0..76 {
         let mut buffer = Vec::new();
         let mut temp = [1];
         for _ in 0..512 {
@@ -52,7 +68,7 @@ fn main() -> std::io::Result<()> {
             buffer.push(temp[0]);
         }
         let res_string = str::from_utf8(&buffer[..]).unwrap();
-        println!("result: , buffer: {:?}, res_string: {}", buffer, res_string);
+        println!("res_string: {}", res_string);
     }
 
     // Read the input.
