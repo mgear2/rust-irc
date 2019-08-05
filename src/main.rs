@@ -7,6 +7,8 @@ use std::io::prelude::*;
 use std::net::TcpStream;
 use std::process::exit;
 use std::str;
+use std::thread;
+// use std::time::Duration;
 
 ///! A simple IRC client written in Rust.
 
@@ -21,6 +23,7 @@ fn connect(nick: String) -> std::io::Result<TcpStream> {
     let stream = TcpStream::connect("irc.freenode.org:6667")?;
     //stream.set_nonblocking(true).expect("set_nonblocking call failed");
 
+    // https://tools.ietf.org/html/rfc1459#section-4.1.1
     // https://github.com/hoodie/concatenation_benchmarks-rs
     let nick_string = format!("{}\r\n", &nick);
     let user_string = format!("{} * * {}\n\r", &nick, &nick);
@@ -44,12 +47,13 @@ fn send_cmd(mut stream: &TcpStream, cmd: &str, msg: String) -> Result<usize, std
     stream.write(cmd.as_bytes())
 }
 
-fn receive(mut stream: &TcpStream) -> std::io::Result<()> {
-    for i in 0..66 {
+fn receive(mut stream: &TcpStream) {
+    let mut i = 0;
+    loop {
         let mut buffer = Vec::new();
         let mut temp = [1];
         for _ in 0..512 {
-            stream.read_exact(&mut temp)?;
+            let _ = stream.read_exact(&mut temp);
             match temp[0] {
                 0xD => continue, // carriage return
                 0xA => break,    // line feed
@@ -58,8 +62,8 @@ fn receive(mut stream: &TcpStream) -> std::io::Result<()> {
         }
         let res_string = str::from_utf8(&buffer[..]).unwrap();
         println!("{}: {}", i, res_string);
+        i += 1;
     }
-    Ok(())
 }
 
 /// Do the computation.
@@ -72,8 +76,11 @@ fn main() -> std::io::Result<()> {
     let nick = args[1].clone();
     let _channel = &args[2];
     let stream = connect(nick).unwrap();
-
-    let _ = receive(&stream);
+    
+    // https://doc.rust-lang.org/nightly/std/thread/
+    thread::spawn( move || {
+        let _ = receive(&stream);
+    });
 
     // Read the input.
     use std::io;
@@ -86,12 +93,7 @@ fn main() -> std::io::Result<()> {
                     println!("exiting...");
                     return Ok(());
                 } else {
-                    //let recv = stream.write(&msg.as_bytes());
-                    //println!("Recv: {:?}", recv);
-                    // https://codereview.stackexchange.com/questions/110073/simple-tcp-client-in-rust
-                    //let mut buffer = String::new();
-                    //let result = stream.read_to_string(&mut buffer);
-                    //println!("result: {:?}, buffer: {}", result, buffer);
+                    println!("You said: {}", msg);
                 }
             }
             Err(error) => eprintln!("error: {}", error),
