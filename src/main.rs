@@ -3,12 +3,12 @@
 // Please see the file LICENSE in the source
 // distribution of this software for license terms.
 
+use std::io;
+use std::str;
+use std::thread;
 use std::io::prelude::*;
 use std::net::TcpStream;
 use std::process::exit;
-use std::str;
-use std::thread;
-// use std::time::Duration;
 
 ///! A simple IRC client written in Rust.
 
@@ -88,7 +88,6 @@ impl Client {
         thread::spawn(move || receive(&recv_stream).expect("error setting up recv_stream"));
 
         // Read the input.
-        use std::io;
         loop {
             let mut msg = String::new();
             match io::stdin().read_line(&mut msg) {
