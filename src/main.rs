@@ -14,13 +14,15 @@ use std::thread;
 
 /// Report proper usage and exit.
 fn usage() -> ! {
-    eprintln!("rust-irc: usage: rust-irc [username] [channel]");
+    eprintln!("rust-irc: usage: rust-irc [username] [server]");
+    eprintln!("rust-irc: if no server is supplied, defaults to irc.freenode.net");
     exit(1);
 }
 
-fn connect(nick: String) -> std::io::Result<TcpStream> {
+fn connect(nick: String, mut server: String) -> std::io::Result<TcpStream> {
+    server.push_str(":6667");
     // https://doc.rust-lang.org/std/net/struct.TcpStream.html
-    let send_stream = TcpStream::connect("irc.freenode.net:6667")?;
+    let send_stream = TcpStream::connect(server)?;
 
     // https://tools.ietf.org/html/rfc1459#section-4.1.1
     // https://github.com/hoodie/concatenation_benchmarks-rs
@@ -75,14 +77,17 @@ fn receive(mut stream: &TcpStream) {
 fn main() -> std::io::Result<()> {
     // Process the arguments.
     let args: Vec<String> = std::env::args().collect();
-    if args.len() != 3 {
-        usage();
+    let mut nick: String;
+    let mut server: String;
+    match args.len() {
+        3 => server = args[2].to_owned(),
+        2 => server = "irc.freenode.net".to_string(),
+        _ => usage(),
     }
-    let nick = args[1].clone();
-    let _channel = &args[2];
-    let send_stream = connect(nick)?;
-    let recv_stream = send_stream.try_clone()?;
+    nick = args[1].to_owned();
 
+    let send_stream = connect(nick, server)?;
+    let recv_stream = send_stream.try_clone()?;
     // https://doc.rust-lang.org/nightly/std/thread/
     thread::spawn( move || {
         let _ = receive(&recv_stream);
