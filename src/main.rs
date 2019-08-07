@@ -71,53 +71,68 @@ fn receive(mut stream: &TcpStream) -> std::io::Result<()> {
     }
 }
 
+struct Client {
+    nick: String,
+    server: String,
+}
+
+impl Client {
+    fn new(nick: String, server: String) -> Client {
+        Client { nick, server }
+    }
+
+    fn run(&self) -> std::io::Result<()> {
+        let send_stream = connect(self.nick.to_owned(), self.server.to_owned())?;
+        let recv_stream = send_stream.try_clone()?;
+        // https://doc.rust-lang.org/nightly/std/thread/
+        thread::spawn(move || receive(&recv_stream).expect("error setting up recv_stream"));
+
+        // Read the input.
+        use std::io;
+        loop {
+            let mut msg = String::new();
+            match io::stdin().read_line(&mut msg) {
+                Ok(_) => {
+                    // https://users.rust-lang.org/t/how-to-split-a-string-by-and-then-print-first-or-last-component/23042
+                    let msg: Vec<&str> = msg.trim().split(' ').collect();
+                    let cmd: &str = msg[0].trim();
+                    match cmd {
+                        "/quit" => {
+                            send_cmd(&send_stream, "QUIT", "\r\n".to_string())?;
+                            println!("Quitting...");
+                            return Ok(());
+                        }
+                        "/join" => {
+                            let join_msg = format!("{}\r\n", msg[1].trim());
+                            send_cmd(&send_stream, "JOIN", join_msg)?;
+                        }
+                        _ => {
+                            println!("Unrecognized command: {}", msg[0]);
+                        }
+                    }
+                }
+                Err(error) => eprintln!("error while reading user input: {}", error),
+            }
+        }
+    }
+}
+
 /// Do the computation.
-fn main() -> std::io::Result<()> {
+fn main() {
     // Process the arguments.
     let args: Vec<String> = std::env::args().collect();
     let mut nick: String;
     let mut server: String;
+
     match args.len() {
         3 => server = args[2].to_owned(),
         2 => server = "irc.freenode.net".to_string(),
         _ => usage(),
     }
+
     nick = args[1].to_owned();
-
-    let send_stream = connect(nick, server)?;
-    let recv_stream = send_stream.try_clone()?;
-    // https://doc.rust-lang.org/nightly/std/thread/
-    thread::spawn(move || {
-        receive(&recv_stream).expect("error setting up recv_stream")
-    });
-
-    // Read the input.
-    use std::io;
-    loop {
-        let mut msg = String::new();
-        match io::stdin().read_line(&mut msg) {
-            Ok(_) => {
-                // https://users.rust-lang.org/t/how-to-split-a-string-by-and-then-print-first-or-last-component/23042
-                let msg: Vec<&str> = msg.trim().split(' ').collect();
-                let cmd: &str = msg[0].trim();
-                match cmd {
-                    "/quit" => {
-                        send_cmd(&send_stream, "QUIT", "\r\n".to_string())?;
-                        println!("Quitting...");
-                        return Ok(());
-                    }
-                    "/join" => {
-                        let join_msg = format!("{}\r\n", msg[1].trim());
-                        send_cmd(&send_stream, "JOIN", join_msg)?;
-                    }
-                    _ => {
-                        println!("Unrecognized command: {}", msg[0]);
-                    }
-                }
-            }
-            Err(error) => eprintln!("error while reading user input: {}", error),
-        }
-    }
+    let client = Client::new(nick, server);
+    client.run().unwrap();
 }
 
 mod tests {
