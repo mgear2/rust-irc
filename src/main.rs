@@ -46,18 +46,16 @@ fn send_cmd(mut stream: &TcpStream, cmd: &str, msg: String) -> Result<usize, std
     cmd.push_str(" ");
     cmd.push_str(&msg);
     println!("sending: {}", cmd.trim());
-    let res = stream.write(cmd.as_bytes());
-    println!("{:?}", res);
-    return res
+    stream.write(cmd.as_bytes())
 }
 
-fn receive(mut stream: &TcpStream) {
+fn receive(mut stream: &TcpStream) -> std::io::Result<()> {
     let mut i = 0;
     loop {
         let mut buffer = Vec::new();
         let mut temp = [1];
         for _ in 0..512 {
-            let _ = stream.read_exact(&mut temp);
+            stream.read_exact(&mut temp)?;
             match temp[0] {
                 0x1 => continue, // start of heading
                 0xD => continue, // carriage return
@@ -89,8 +87,8 @@ fn main() -> std::io::Result<()> {
     let send_stream = connect(nick, server)?;
     let recv_stream = send_stream.try_clone()?;
     // https://doc.rust-lang.org/nightly/std/thread/
-    thread::spawn( move || {
-        let _ = receive(&recv_stream);
+    thread::spawn(move || {
+        receive(&recv_stream).expect("error setting up recv_stream")
     });
 
     // Read the input.
@@ -100,24 +98,24 @@ fn main() -> std::io::Result<()> {
         match io::stdin().read_line(&mut msg) {
             Ok(_) => {
                 // https://users.rust-lang.org/t/how-to-split-a-string-by-and-then-print-first-or-last-component/23042
-                let msg: Vec<&str> = msg.trim().split(" ").collect();
+                let msg: Vec<&str> = msg.trim().split(' ').collect();
                 let cmd: &str = msg[0].trim();
                 match cmd {
                     "/quit" => {
-                        let _ = send_cmd(&send_stream, "QUIT", "\r\n".to_string());
+                        send_cmd(&send_stream, "QUIT", "\r\n".to_string())?;
                         println!("Quitting...");
                         return Ok(());
-                    },
+                    }
                     "/join" => {
                         let join_msg = format!("{}\r\n", msg[1].trim());
-                        let _ = send_cmd(&send_stream, "JOIN", join_msg);
+                        send_cmd(&send_stream, "JOIN", join_msg)?;
                     }
                     _ => {
                         println!("Unrecognized command: {}", msg[0]);
                     }
                 }
             }
-            Err(error) => eprintln!("error: {}", error),
+            Err(error) => eprintln!("error while reading user input: {}", error),
         }
     }
 }
