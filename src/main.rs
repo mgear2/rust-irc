@@ -29,8 +29,8 @@ fn connect(nick: String, mut server: String) -> std::io::Result<TcpStream> {
     let nick_string = format!("{}\r\n", &nick);
     let user_string = format!("{} * * {}\n\r", &nick, &nick);
 
-    let _ = send_cmd(&send_stream, "USER", user_string);
-    let _ = send_cmd(&send_stream, "NICK", nick_string);
+    send_cmd(&send_stream, "USER", user_string)?;
+    send_cmd(&send_stream, "NICK", nick_string)?;
 
     Ok(send_stream)
 }
@@ -93,7 +93,7 @@ impl Client {
             match io::stdin().read_line(&mut msg) {
                 Ok(_) => {
                     // https://users.rust-lang.org/t/how-to-split-a-string-by-and-then-print-first-or-last-component/23042
-                    let msg: Vec<&str> = msg.trim().split(' ').collect();
+                    let mut msg: Vec<&str> = msg.trim().split(' ').collect();
                     let cmd: &str = msg[0].trim();
                     match cmd {
                         "/quit" => {
@@ -102,8 +102,37 @@ impl Client {
                             return Ok(());
                         }
                         "/join" => {
-                            let join_msg = format!("{}\r\n", msg[1].trim());
-                            send_cmd(&send_stream, "JOIN", join_msg)?;
+                            let msg = format!("{}\r\n", msg[1].trim());
+                            send_cmd(&send_stream, "JOIN", msg)?;
+                        }
+                        "/part" => {
+                            let msg = format!("{}\r\n", msg[1].trim());
+                            send_cmd(&send_stream, "PART", msg)?;
+                        }
+                        "/nick" => {
+                            let msg = format!("{}\r\n", &self.nick);
+                            send_cmd(&send_stream, "NICK", msg)?;
+                        }
+                        "/msg" => {
+                            let receiver = msg[1].trim();
+                            msg.remove(0);
+                            msg.remove(1);
+                            let msg = msg;
+                            let msg = format!("{} :{}\r\n", receiver, msg;
+                            println!("{}", msg);
+                            send_cmd(&send_stream, "PRIVMSG", msg)?;
+                        }
+                        "/list" => {
+                            unimplemented!();
+                        }
+                        "/links" => {
+                            unimplemented!();
+                        }
+                        "/names" => {
+                            unimplemented!();
+                        }
+                        "/topic" => {
+                            unimplemented!();
                         }
                         _ => {
                             println!("Unrecognized command: {}", msg[0]);
@@ -131,7 +160,7 @@ fn main() {
 
     nick = args[1].to_owned();
     let client = Client::new(nick, server);
-    client.run().unwrap();
+    client.run().expect("Client Error");
 }
 
 mod tests {
