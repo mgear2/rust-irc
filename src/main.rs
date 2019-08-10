@@ -4,11 +4,11 @@
 // distribution of this software for license terms.
 
 use std::io;
-use std::str;
-use std::thread;
 use std::io::prelude::*;
 use std::net::TcpStream;
 use std::process::exit;
+use std::str;
+use std::thread;
 
 ///! A simple IRC client written in Rust.
 
@@ -116,10 +116,14 @@ impl Client {
                         "/msg" => {
                             let receiver = msg[1].trim();
                             msg.remove(0);
-                            msg.remove(1);
-                            let msg = msg;
-                            let msg = format!("{} :{}\r\n", receiver, msg;
-                            println!("{}", msg);
+                            msg.remove(0);
+                            let mut text = String::new();
+                            msg.iter().for_each(|word| {
+                                text.push_str(word);
+                                text.push_str(" ")
+                            });
+                            let text = text.trim();
+                            let msg = format!("{} :{:?}\r\n", receiver, text);
                             send_cmd(&send_stream, "PRIVMSG", msg)?;
                         }
                         "/list" => {
