@@ -311,9 +311,17 @@ fn main() {
 }
 
 mod tests {
-    // extremely important test
+    // create_client_test
     #[test]
-    fn extra_testy_test() {
-        assert_eq!((2 + 2), 4)
+    fn create_client_test() {
+        let client = super::Client::new("testnick".to_string(), "testserver".to_string());
+        assert_eq!(client.nick, "testnick".to_string());
+        assert_eq!(client.server, "testserver".to_string())
+    }
+    // connect_test
+    #[test]
+    #[should_panic]
+    fn connect_test() {
+        super::connect("testnick".to_owned(), "127.0.0.1:5000".to_owned()).unwrap();
     }
 }
