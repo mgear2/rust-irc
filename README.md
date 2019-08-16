@@ -52,6 +52,15 @@ Function: Lists channels and their topics. If the parameter is given, just that 
 Parameters: [channel]
 Function: Lists users on the server. If the parameter is given, just users in that channel are displayed. 
 
+## Examples
+<img src="img/example01.png" alt="run" width="600"/>
+
+>Connecting to `irc.freenode.net` with nickname `matt503`
+
+<img src="img/example02.png" alt="help" width="600"/>
+
+>Output of the `help` command after connecting to the server
+
 ## IRC
 
 For an in-depth look at the IRC protocol, including descriptions of the above commands and how to implement them:  
