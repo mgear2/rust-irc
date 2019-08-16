@@ -181,7 +181,7 @@ impl Client {
     ///     continue
     /// }
     ///
-    fn verify(&self, params: usize, msg: &Vec<&str>) -> Option<()> {
+    fn verify(&self, params: usize, msg: &[&str]) -> Option<()> {
         if msg.len() < params {
             let msg = self.commands.get(msg[0].trim()).unwrap();
             println!("{}", msg);
@@ -221,28 +221,28 @@ impl Client {
                             return Ok(());
                         }
                         "/join" => {
-                            if let None = self.verify(2, &msg) {
+                            if self.verify(2, &msg).is_none() {
                                 continue;
                             }
                             let msg = format!("{}\r\n", msg[1].trim());
                             send_cmd(&send_stream, "JOIN", msg)?;
                         }
                         "/part" => {
-                            if let None = self.verify(2, &msg) {
+                            if self.verify(2, &msg).is_none() {
                                 continue;
                             }
                             let msg = format!("{}\r\n", msg[1].trim());
                             send_cmd(&send_stream, "PART", msg)?;
                         }
                         "/nick" => {
-                            if let None = self.verify(2, &msg) {
+                            if self.verify(2, &msg).is_none() {
                                 continue;
                             }
                             let msg = format!("{}\r\n", msg[1].trim());
                             send_cmd(&send_stream, "NICK", msg)?;
                         }
                         "/msg" => {
-                            if let None = self.verify(2, &msg) {
+                            if self.verify(2, &msg).is_none() {
                                 continue;
                             }
                             let receiver = msg[1].trim();
@@ -258,23 +258,17 @@ impl Client {
                             send_cmd(&send_stream, "PRIVMSG", msg)?;
                         }
                         "/list" => {
-                            let mut target = "";
-                            if msg.len() > 1 {
-                                target = msg[1].trim();
-                            }
+                            let target = if msg.len() > 1 { msg[1].trim() } else { "" };
                             let msg = format!("{}\r\n", target);
                             send_cmd(&send_stream, "LIST", msg)?;
                         }
                         "/names" => {
-                            let mut target = "";
-                            if msg.len() > 1 {
-                                target = msg[1].trim();
-                            }
+                            let target = if msg.len() > 1 { msg[1].trim() } else { "" };
                             let msg = format!("{}\r\n", target);
                             send_cmd(&send_stream, "NAMES", msg)?;
                         }
                         "/topic" => {
-                            if let None = self.verify(3, &msg) {
+                            if self.verify(3, &msg).is_none() {
                                 continue;
                             }
                             let msg = format!("{} {}\r\n", msg[1].trim(), msg[2].trim());
