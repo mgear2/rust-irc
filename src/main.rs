@@ -13,6 +13,17 @@ use std::thread;
 
 ///! A simple IRC client written in Rust.
 
+/// Returns a TcpStream connected to the desired server, with the given nickname
+///
+/// # Arguments
+///
+/// * `nick` - A string that holds the desired user nickname.
+/// # `server` - A string that holds the desired irc server
+///
+/// # Example
+///
+/// `let stream = connect(nick.to_owned(), server.to_owned()).unwrap();`
+///
 fn connect(nick: String, mut server: String) -> std::io::Result<TcpStream> {
     server.push_str(":6667");
     // https://doc.rust-lang.org/std/net/struct.TcpStream.html
@@ -29,12 +40,17 @@ fn connect(nick: String, mut server: String) -> std::io::Result<TcpStream> {
     Ok(send_stream)
 }
 
-fn _send_msg(mut stream: &TcpStream, msg: String) -> Result<usize, std::io::Error> {
-    let mut priv_msg = "PRIVMSG ".to_string();
-    priv_msg.push_str(&msg);
-    stream.write(msg.as_bytes())
-}
-
+/// Writes a command to a given TcpStream
+///
+/// # Arguments
+///
+/// * `stream` - A mutable reference to a TcpStream
+/// # `server` - A string that holds the desired message
+///
+/// # Example
+///
+/// `send_cmd(&send_stream, "QUIT", "\r\n".to_string())?;`
+///
 fn send_cmd(mut stream: &TcpStream, cmd: &str, msg: String) -> Result<usize, std::io::Error> {
     let mut cmd = cmd.to_string();
     cmd.push_str(" ");
@@ -43,6 +59,22 @@ fn send_cmd(mut stream: &TcpStream, cmd: &str, msg: String) -> Result<usize, std
     stream.write(cmd.as_bytes())
 }
 
+/// Loops to recieve data from a TcpStream
+///
+/// # Arguments
+///
+/// * `stream` - A mutable reference to a TcpStream
+///
+/// # Example
+///
+/// The following example demonstrates how to set up a threaded TcpStream with one
+/// stream reference listening and one receiving.
+/// ```
+/// let send_stream = connect(nick.to_owned(), server.to_owned())?;
+/// let recv_stream = send_stream.try_clone()?;
+/// thread::spawn(move || receive(&recv_stream).expect("error setting up recv_stream"));
+/// ```
+///
 fn receive(mut stream: &TcpStream) -> std::io::Result<()> {
     let mut i = 0;
     loop {
@@ -70,23 +102,62 @@ fn receive(mut stream: &TcpStream) -> std::io::Result<()> {
     }
 }
 
+/// A client struct holds nickname, server, and command information as well as
+/// implementing functions to connect to a server and issue commands.
 struct Client {
+    /// A user must have a nickname
     nick: String,
+    /// A server to connect to must be specified
     server: String,
+    /// Storing command data in a hashmap will supply the
+    /// user with accurate feedback
     commands: HashMap<String, String>,
 }
 
 impl Client {
+    /// Returns a Client with the given nickname and server
+    /// as well as a hashmap built with command data
+    ///
+    /// # Arguments
+    ///
+    /// * `nick` - A string holding the desired nickname
+    /// * `server` - A string holding the desired server
+    ///
+    /// # Example
+    ///
+    /// `let client = Client::new(nick, server);`
+    ///
     fn new(nick: String, server: String) -> Client {
         let mut commands = HashMap::new();
         commands.insert("/quit".to_string(), "Command: /quit".to_string());
-        commands.insert("/join".to_string(), "Command: /join Parameters: <channel>".to_string());
-        commands.insert("/part".to_string(), "Command: /part Parameters: <channel>".to_string());
-        commands.insert("/nick".to_string(), "Command: /nick Parameters: <nickname>".to_string());
-        commands.insert("/msg".to_string(), "Command: /msg Parameters: <receiver>".to_string());
-        commands.insert("/topic".to_string(), "Command: /topic Parameters: <channel> [<topic>]".to_string());
-        commands.insert("/list".to_string(), "Command: /list Parameters: <channel>".to_string());
-        commands.insert("/names".to_string(), "Command: /names Parameters: <channel>".to_string());
+        commands.insert(
+            "/join".to_string(),
+            "Command: /join Parameters: <channel>".to_string(),
+        );
+        commands.insert(
+            "/part".to_string(),
+            "Command: /part Parameters: <channel>".to_string(),
+        );
+        commands.insert(
+            "/nick".to_string(),
+            "Command: /nick Parameters: <nickname>".to_string(),
+        );
+        commands.insert(
+            "/msg".to_string(),
+            "Command: /msg Parameters: <receiver>".to_string(),
+        );
+        commands.insert(
+            "/topic".to_string(),
+            "Command: /topic Parameters: <channel> [<topic>]".to_string(),
+        );
+        commands.insert(
+            "/list".to_string(),
+            "Command: /list Parameters: <channel>".to_string(),
+        );
+        commands.insert(
+            "/names".to_string(),
+            "Command: /names Parameters: <channel>".to_string(),
+        );
         Client {
             nick,
             server,
@@ -94,15 +165,36 @@ impl Client {
         }
     }
 
+    /// Returns an option specifying whether the given
+    /// command/message is valid. If the message is not valid,
+    /// the function prints information about the command to
+    /// the user and returns None.
+    ///
+    /// # Arguments
+    ///
+    /// * `params` - The minimum number of params needed for the command
+    /// * `msg` - The msg to verify
+    ///
+    /// # Example
+    ///
+    /// if let None = self.verify(2, &msg) {
+    ///     continue
+    /// }
+    ///
     fn verify(&self, params: usize, msg: &Vec<&str>) -> Option<()> {
         if msg.len() < params {
             let msg = self.commands.get(msg[0].trim()).unwrap();
             println!("{}", msg);
-            return Some(());
+            return None;
         }
-        None
+        Some(())
     }
 
+    /// Creates a send and recv TcpStream (with the same socket)
+    /// spins recv to its own thread
+    /// main thread takes user input and matches it to commands
+    /// after commands and processed and messages verified,
+    /// the send stream is used to send command/message combinations.
     fn run(&self) -> std::io::Result<()> {
         let send_stream = connect(self.nick.to_owned(), self.server.to_owned())?;
         let recv_stream = send_stream.try_clone()?;
@@ -119,7 +211,9 @@ impl Client {
                     let cmd: &str = msg[0].trim();
                     match cmd {
                         "help" => {
-                            self.commands.iter().for_each( |(_, val)| println!("{}", val));
+                            self.commands
+                                .iter()
+                                .for_each(|(_, val)| println!("{}", val));
                         }
                         "/quit" => {
                             send_cmd(&send_stream, "QUIT", "\r\n".to_string())?;
@@ -127,29 +221,29 @@ impl Client {
                             return Ok(());
                         }
                         "/join" => {
-                            if let Some(_) = self.verify(2, &msg) {
-                                continue
+                            if let None = self.verify(2, &msg) {
+                                continue;
                             }
                             let msg = format!("{}\r\n", msg[1].trim());
                             send_cmd(&send_stream, "JOIN", msg)?;
                         }
                         "/part" => {
-                            if let Some(_) = self.verify(2, &msg) {
-                                continue
+                            if let None = self.verify(2, &msg) {
+                                continue;
                             }
                             let msg = format!("{}\r\n", msg[1].trim());
                             send_cmd(&send_stream, "PART", msg)?;
                         }
                         "/nick" => {
-                            if let Some(_) = self.verify(2, &msg) {
-                                continue
+                            if let None = self.verify(2, &msg) {
+                                continue;
                             }
                             let msg = format!("{}\r\n", msg[1].trim());
                             send_cmd(&send_stream, "NICK", msg)?;
                         }
                         "/msg" => {
-                            if let Some(_) = self.verify(2, &msg) {
-                                continue
+                            if let None = self.verify(2, &msg) {
+                                continue;
                             }
                             let receiver = msg[1].trim();
                             msg.remove(0);
@@ -180,8 +274,8 @@ impl Client {
                             send_cmd(&send_stream, "NAMES", msg)?;
                         }
                         "/topic" => {
-                            if let Some(_) = self.verify(3, &msg) {
-                                continue
+                            if let None = self.verify(3, &msg) {
+                                continue;
                             }
                             let msg = format!("{} {}\r\n", msg[1].trim(), msg[2].trim());
                             send_cmd(&send_stream, "NAMES", msg)?;
@@ -204,7 +298,7 @@ fn usage() -> ! {
     exit(1);
 }
 
-/// Do the computation.
+/// Parse command line arguments and use them create and run a client
 fn main() {
     // Process the arguments.
     let args: Vec<String> = std::env::args().collect();
