@@ -3,6 +3,7 @@
 // Please see the file LICENSE in the source
 // distribution of this software for license terms.
 
+use std::collections::HashMap;
 use std::io;
 use std::io::prelude::*;
 use std::net::TcpStream;
@@ -11,13 +12,6 @@ use std::str;
 use std::thread;
 
 ///! A simple IRC client written in Rust.
-
-/// Report proper usage and exit.
-fn usage() -> ! {
-    eprintln!("rust-irc: usage: rust-irc [username] [server]");
-    eprintln!("rust-irc: if no server is supplied, defaults to irc.freenode.net");
-    exit(1);
-}
 
 fn connect(nick: String, mut server: String) -> std::io::Result<TcpStream> {
     server.push_str(":6667");
@@ -63,10 +57,15 @@ fn receive(mut stream: &TcpStream) -> std::io::Result<()> {
                 _ => buffer.push(temp[0]),
             }
         }
-        let res_string = str::from_utf8(&buffer[..]).unwrap();
-        if !res_string.is_empty() {
-            println!("{}: {}", i, res_string);
-            i += 1;
+        let res_string = str::from_utf8(&buffer[..]);
+        match res_string {
+            Ok(_) => {
+                if !res_string.unwrap().is_empty() {
+                    println!("{}: {}", i, res_string.unwrap());
+                    i += 1;
+                }
+            }
+            Err(error) => eprintln!("error while reading from tcp stream: {}", error),
         }
     }
 }
@@ -74,11 +73,34 @@ fn receive(mut stream: &TcpStream) -> std::io::Result<()> {
 struct Client {
     nick: String,
     server: String,
+    commands: HashMap<String, String>,
 }
 
 impl Client {
     fn new(nick: String, server: String) -> Client {
-        Client { nick, server }
+        let mut commands = HashMap::new();
+        commands.insert("/quit".to_string(), "Command: /quit".to_string());
+        commands.insert("/join".to_string(), "Command: /join Parameters: <channel>".to_string());
+        commands.insert("/part".to_string(), "Command: /part Parameters: <channel>".to_string());
+        commands.insert("/nick".to_string(), "Command: /nick Parameters: <nickname>".to_string());
+        commands.insert("/msg".to_string(), "Command: /msg Parameters: <receiver>".to_string());
+        commands.insert("/topic".to_string(), "Command: /topic Parameters: <channel> [<topic>]".to_string());
+        commands.insert("/list".to_string(), "Command: /list Parameters: <channel>".to_string());
+        commands.insert("/names".to_string(), "Command: /names Parameters: <channel>".to_string());
+        Client {
+            nick,
+            server,
+            commands,
+        }
+    }
+
+    fn verify(&self, params: usize, msg: &Vec<&str>) -> Option<()> {
+        if msg.len() < params {
+            let msg = self.commands.get(msg[0].trim()).unwrap();
+            println!("{}", msg);
+            return Some(());
+        }
+        None
     }
 
     fn run(&self) -> std::io::Result<()> {
@@ -96,24 +118,39 @@ impl Client {
                     let mut msg: Vec<&str> = msg.trim().split(' ').collect();
                     let cmd: &str = msg[0].trim();
                     match cmd {
+                        "help" => {
+                            self.commands.iter().for_each( |(_, val)| println!("{}", val));
+                        }
                         "/quit" => {
                             send_cmd(&send_stream, "QUIT", "\r\n".to_string())?;
                             println!("Quitting...");
                             return Ok(());
                         }
                         "/join" => {
+                            if let Some(_) = self.verify(2, &msg) {
+                                continue
+                            }
                             let msg = format!("{}\r\n", msg[1].trim());
                             send_cmd(&send_stream, "JOIN", msg)?;
                         }
                         "/part" => {
+                            if let Some(_) = self.verify(2, &msg) {
+                                continue
+                            }
                             let msg = format!("{}\r\n", msg[1].trim());
                             send_cmd(&send_stream, "PART", msg)?;
                         }
                         "/nick" => {
-                            let msg = format!("{}\r\n", &self.nick);
+                            if let Some(_) = self.verify(2, &msg) {
+                                continue
+                            }
+                            let msg = format!("{}\r\n", msg[1].trim());
                             send_cmd(&send_stream, "NICK", msg)?;
                         }
                         "/msg" => {
+                            if let Some(_) = self.verify(2, &msg) {
+                                continue
+                            }
                             let receiver = msg[1].trim();
                             msg.remove(0);
                             msg.remove(0);
@@ -127,16 +164,27 @@ impl Client {
                             send_cmd(&send_stream, "PRIVMSG", msg)?;
                         }
                         "/list" => {
-                            unimplemented!();
-                        }
-                        "/links" => {
-                            unimplemented!();
+                            let mut target = "";
+                            if msg.len() > 1 {
+                                target = msg[1].trim();
+                            }
+                            let msg = format!("{}\r\n", target);
+                            send_cmd(&send_stream, "LIST", msg)?;
                         }
                         "/names" => {
-                            unimplemented!();
+                            let mut target = "";
+                            if msg.len() > 1 {
+                                target = msg[1].trim();
+                            }
+                            let msg = format!("{}\r\n", target);
+                            send_cmd(&send_stream, "NAMES", msg)?;
                         }
                         "/topic" => {
-                            unimplemented!();
+                            if let Some(_) = self.verify(3, &msg) {
+                                continue
+                            }
+                            let msg = format!("{} {}\r\n", msg[1].trim(), msg[2].trim());
+                            send_cmd(&send_stream, "NAMES", msg)?;
                         }
                         _ => {
                             println!("Unrecognized command: {}", msg[0]);
@@ -147,6 +195,13 @@ impl Client {
             }
         }
     }
+}
+
+/// Report proper usage and exit.
+fn usage() -> ! {
+    eprintln!("rust-irc: usage: rust-irc [username] [server]");
+    eprintln!("rust-irc: if no server is supplied, defaults to irc.freenode.net");
+    exit(1);
 }
 
 /// Do the computation.
