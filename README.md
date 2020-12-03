@@ -1,3 +1,5 @@
+![rustirctitle](/img/rust-irc_title_default.png)
+
 # rust-irc
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -81,3 +83,7 @@ More information about IRC Servers:
 This program is licensed under the "MIT License".  Please
 see the file `LICENSE` in the source distribution of this
 software for license terms.
+
+## Misc
+
+Title Art generated at https://fontmeme.com/pixel-fonts/
